@@ -1,7 +1,26 @@
+/**
+ * -*- coding: utf-8 -*-
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Viktor Aspegren (V.A) & Gemini CLI (AI Partner) • SyntaxHeart Family <3
+ * 
+ * 🌐 Clippy LAN API Server
+ * Bridges your local Electron AI assistant (Clippy) with any device on your LAN (port 11337).
+ * Utilizes direct instantiation of "@electron/llm"'s native main-process LanguageModel class
+ * to execute type-safe local LLM prompt inference programmatically in the main process.
+ */
+
 import express, { Request, Response } from "express";
 import cors from "cors";
+import fs from "fs";
 import { getLogger } from "./logger";
 import { app } from "electron";
+import { getModelManager } from "./models";
+import { LanguageModel } from "@electron/llm/dist/language-model";
+import { 
+  LanguageModelPromptRole, 
+  LanguageModelPromptType 
+} from "@electron/llm/dist/interfaces";
+import { ManagedModel } from "../models";
 
 let server: any = null;
 let serverPort = 11337;
@@ -54,16 +73,15 @@ export async function startApiServer(port: number = 11337) {
   });
 
   // Get available models endpoint
-  expressApp.get("/models", async (req: Request, res: Response) => {
+  expressApp.get("/models", (req: Request, res: Response) => {
     try {
-      const { getModelManager } = await import("./models");
-      const models = getModelManager().getModels();
+      const models = getModelManager().getRendererModelState();
 
       const modelList = Object.values(models)
-        .filter((model) => model.downloaded)
-        .map((model) => ({
+        .filter((model: ManagedModel) => model.downloaded)
+        .map((model: ManagedModel) => ({
           name: model.name,
-          alias: model.alias,
+          alias: model.name,
           size: model.size,
           downloaded: model.downloaded,
         }));
@@ -94,23 +112,11 @@ export async function startApiServer(port: number = 11337) {
         });
       }
 
-      // Import electron-llm dynamically
-      const { getLlm } = await import("@electron/llm");
-      const llm = getLlm();
-
-      if (!llm) {
-        return res.status(503).json({
-          error: "Service Unavailable",
-          message: "LLM not initialized",
-        });
-      }
-
-      // Get the model to use
-      const { getModelManager } = await import("./models");
+      // Check available models from ModelManager
       const modelManager = getModelManager();
-      const models = modelManager.getModels();
+      const models = modelManager.getRendererModelState();
       const availableModels = Object.values(models).filter(
-        (m) => m.downloaded,
+        (m: ManagedModel) => m.downloaded,
       );
 
       if (availableModels.length === 0) {
@@ -121,25 +127,44 @@ export async function startApiServer(port: number = 11337) {
       }
 
       // Use specified model or first available
-      const targetModelAlias =
-        modelAlias || availableModels[0].alias || availableModels[0].name;
+      const targetModel = availableModels.find(
+        (m: ManagedModel) => 
+          (modelAlias && m.name.toLowerCase() === modelAlias.toLowerCase()) || 
+          (modelAlias && m.name === modelAlias)
+      ) || availableModels[0];
 
-      // Create chat session
-      const session = await llm.createChatSession({
+      const targetModelAlias = targetModel.name;
+      const modelPath = modelManager.getModelByName(targetModelAlias)?.path;
+
+      if (!modelPath || !fs.existsSync(modelPath)) {
+        return res.status(503).json({
+          error: "Service Unavailable",
+          message: `Model file for ${targetModelAlias} not found on disk.`,
+        });
+      }
+
+      // Direct Main-process LanguageModel instantiation using native @electron/llm logic!
+      const lm = await LanguageModel.create({
         modelAlias: targetModelAlias,
+        modelPath: modelPath,
         systemPrompt:
           systemPrompt ||
           "You are Clippy, a helpful AI assistant running locally.",
         temperature: temperature || 0.7,
       });
 
-      // Get response
-      const response = await session.prompt(message, {
-        maxTokens: maxTokens || 2048,
+      // Execute prompt on the model instance
+      const responseText = await lm.prompt({
+        role: LanguageModelPromptRole.USER,
+        type: LanguageModelPromptType.TEXT,
+        content: message,
       });
 
+      // Cleanup model instance from memory
+      lm.destroy();
+
       const chatResponse: ChatResponse = {
-        response: response.text,
+        response: responseText,
         model: targetModelAlias,
         timestamp: new Date().toISOString(),
       };
@@ -203,4 +228,3 @@ export function getServerPort(): number {
 export function isServerRunning(): boolean {
   return server !== null;
 }
-
