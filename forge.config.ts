@@ -244,7 +244,7 @@ const config: ForgeConfig = {
       ["win32"],
     ),
     new MakerZIP({}, ["darwin", "win32"]),
-    new MakerRpm({}),
+    // new MakerRpm({}),
     new MakerDeb({}),
   ],
   plugins: [
