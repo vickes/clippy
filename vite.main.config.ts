@@ -10,8 +10,6 @@ export default defineConfig({
         "@electron/llm/dist/interfaces",
         "node-llama-cpp",
         "electron-log",
-        "express",
-        "cors",
       ],
     },
     sourcemap: true,
