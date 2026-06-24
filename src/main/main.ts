@@ -12,9 +12,11 @@ import { createMainWindow, setupWindowListener } from "./windows";
 import { getModelManager } from "./models";
 import { setupAutoUpdater } from "./update";
 import { setupAppMenu } from "./menu";
+import { startApiServer, stopApiServer } from "./api-server";
 
 async function onReady() {
   console.info(`Welcome to Clippy v${app.getVersion()}`);
+  console.info(`🌐 Starting in localhost/LAN mode`);
 
   await setupAutoUpdater();
   await loadLlm();
@@ -22,6 +24,9 @@ async function onReady() {
   setupIpcListeners();
   setupWindowListener();
   await createMainWindow();
+  
+  // Start the LAN API server
+  await startApiServer(11337);
 }
 
 async function loadLlm() {
@@ -42,6 +47,7 @@ app.on("ready", onReady);
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    stopApiServer();
     app.quit();
   }
 });

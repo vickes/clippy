@@ -4,7 +4,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: ["@electron/llm", "node-llama-cpp", "electron-log"],
+      external: [
+        "@electron/llm",
+        "@electron/llm/dist/language-model",
+        "@electron/llm/dist/interfaces",
+        "node-llama-cpp",
+        "electron-log",
+      ],
     },
     sourcemap: true,
   },

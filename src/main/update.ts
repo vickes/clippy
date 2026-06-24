@@ -4,28 +4,12 @@ import { getLogger } from "./logger";
 import { getStateManager } from "./state";
 
 /**
- * Setup the auto updater
+ * Setup the auto updater - DISABLED for localhost/LAN mode
  */
 export function setupAutoUpdater() {
-  let disableAutoUpdate = false;
-
-  try {
-    disableAutoUpdate =
-      getStateManager().store.get("settings")?.disableAutoUpdate;
-  } catch (error) {
-    getLogger().warn("Failed to get settings from state manager", error);
-  }
-
-  if (!disableAutoUpdate) {
-    updateElectronApp({
-      updateSource: {
-        type: UpdateSourceType.ElectronPublicUpdateService,
-        repo: "felixrieseberg/clippy",
-      },
-      updateInterval: "1 hour",
-      logger: require("electron-log"),
-    });
-  }
+  getLogger().info("Auto-updater disabled - running in localhost/LAN mode");
+  // Auto-updates are disabled to ensure 100% offline operation
+  // and prioritize LAN access without external network calls
 }
 
 /**
@@ -52,51 +36,17 @@ export function getIsNewUpdateAvailable() {
 }
 
 /**
- * Check for updates
+ * Check for updates - DISABLED for localhost/LAN mode
  *
  * @returns {Promise<void>}
  */
 export async function checkForUpdates() {
-  if (!app.isPackaged) {
-    return dialog.showMessageBox({
-      type: "info",
-      title: "Update Check",
-      message:
-        "You are running a development version of Clippy, so the auto updater is disabled.",
-    });
-  }
-
-  try {
-    const [comparisonString, isUpdateAvailable] = await Promise.all([
-      getVersionComparisonString(),
-      getIsNewUpdateAvailable(),
-    ]);
-
-    if (isUpdateAvailable) {
-      await dialog.showMessageBox({
-        type: "info",
-        title: "Update Available",
-        message: `${comparisonString} The auto updater is already downloading the update in the background.`,
-      });
-    } else {
-      await dialog.showMessageBox({
-        type: "info",
-        title: "You're Up-to-Date",
-        message: `${comparisonString} You are already using the latest version of Clippy.`,
-      });
-    }
-  } catch (error) {
-    const result = await dialog.showMessageBox({
-      type: "error",
-      title: "Update Check Failed",
-      message: `An error occurred while running the auto updater: ${error}. Would you like to visit the homepage to check for updates manually?`,
-      buttons: ["Open Homepage", "Cancel"],
-    });
-
-    if (result.response === 0) {
-      shell.openExternal("https://felixrieseberg.github.io/clippy/");
-    }
-  }
+  return dialog.showMessageBox({
+    type: "info",
+    title: "Updates Disabled",
+    message:
+      "Auto-updates are disabled in localhost/LAN mode. Clippy runs 100% offline for maximum privacy and LAN accessibility.",
+  });
 }
 
 /**

@@ -89,7 +89,7 @@ export function setupWindowListener() {
         });
       }
 
-      if (getDebugManager().store.get("openDevToolsOnStart")) {
+      if (true || getDebugManager().store.get("openDevToolsOnStart")) {
         browserWindow.webContents.openDevTools({ mode: "detach" });
       }
 
